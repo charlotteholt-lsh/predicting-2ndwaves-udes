@@ -156,7 +156,8 @@ end
 # Generates plots of the median and IQR time series and transmissibility response across all runs of a simulation sim_name
 function EnsembleSummary(sim_name; titles=["a" "b" "c" "a"])
 	root = datadir("sims", "udde", sim_name)
-	filenames = load(root * "\\converged_sims.jld2")["sims"]
+	#filenames = load(root * "\\converged_sims.jld2")["sims"]
+	filenames = load(joinpath(root, "converged_sims.jld2"))["sims"]
 	f = load(joinpath(root, filenames[1])* "/results.jld2")
 	pred = f["prediction"]
 	betas = f["betas"]
@@ -338,12 +339,12 @@ function loss_analysis(sim_name)
 	summary["frac_stable"] = length(converged_sims)/length(filenames)
 
 	df = DataFrame(summary)
-	CSV.write(root*"\\loss_summary.csv", df)
-
+	# CSV.write(root*"\\loss_summary.csv", df)
+	CSV.write(joinpath(root, "loss_summary.csv"), df)
 	
 
-	save(root * "\\converged_sims.jld2", "sims", converged_sims)
-
+	# save(root * "\\converged_sims.jld2", "sims", converged_sims)
+	save(joinpath(root, "converged_sims.jld2"), "sims", converged_sims)
 	nothing
 end
 
@@ -351,8 +352,8 @@ end
 # Gets statistics for the number, size, and timings of subsequent waves predicted by all sims in sim_name
 function wave_count(sim_name)
 	root = datadir("sims", "udde", sim_name)
-	filenames = load(root * "\\converged_sims.jld2")["sims"]
-
+	# filenames = load(root * "\\converged_sims.jld2")["sims"]
+	filenames = load(joinpath(root, "converged_sims.jld2"))["sims"]
 	waves = ones(length(filenames))
 	wave_times = [NaN for i in eachindex(filenames)]
 	wave_sizes = zeros(length(filenames))
@@ -409,15 +410,16 @@ function wave_count(sim_name)
 		"wave_size_err" => wave_size_err
 	))
 
-	CSV.write(root*"\\wave_summary.csv", res)
+	# CSV.write(root*"\\wave_summary.csv", res)
+	CSV.write(joinpath(root, "wave_summary.csv"), res)
 	nothing
 end
 
 # Gets the transmissibility at M=0 and the M value required for R0 = 1 for all sims in sim_name
 function beta_analysis(sim_name)
 	root = datadir("sims", "udde", sim_name)
-	filenames = load(root * "\\converged_sims.jld2")["sims"]
-
+	# filenames = load(root * "\\converged_sims.jld2")["sims"]
+	filenames = load(joinpath(root, "converged_sims.jld2"))["sims"]
 	normal_beta = zeros(length(filenames))
 	crit_beta = zeros(length(filenames))
 
@@ -540,20 +542,7 @@ function comparison_plots()
 	nothing
 end
 
-mean([unbiased_summ[!, "avg_"*l] for l in loss_labels])./mean([binn_summ[!, "avg_"*l] for l in loss_labels])
 
-
-
-# Generates side-by-side ensemble time series and transmissibility responses for all regions, comparing biased to unbiased
-for region in all_regions
-	pred_bias, beta_bias = EnsembleSummary("final_$region", titles=["(a)" "(b)" "(c)" "(a)"])
-	pred_unbias, beta_unbias = EnsembleSummary("baseline_$region", titles=["(d)" "(e)" "(f)" "(b)"])
-	pl = plot(pred_bias, pred_unbias, layout = (1, 2), size=(1000,800))
-	savefig(pl, plotsdir("paper", "appendix", "ensemble_comp_$region.png"))
-
-	pl = plot(beta_bias, beta_unbias, layout = (1, 2), size=(800,500))
-	savefig(pl, plotsdir("paper", "appendix", "beta_comp_$region.png"))
-end
 
 # Plots a single figure with ensemble infected time series for all regions
 # type: indicates whether biased or unbiased (we used "final" and "baseline" respectively)
@@ -563,7 +552,8 @@ function all_infected(type)
 	for (i,region) in enumerate(all_regions)
 		sim_name = type*"_"*region
 		root = datadir("sims", "udde", sim_name)
-		filenames = load(root * "\\converged_sims.jld2")["sims"]
+		# filenames = load(root * "\\converged_sims.jld2")["sims"]
+		filenames = load(joinpath(root, "converged_sims.jld2"))["sims"]
 		f = load(joinpath(root, filenames[1])* "/results.jld2")
 		hist_data = f["hist_data"][2,:]
 		train_data = f["train_data"][2,:]
@@ -607,3 +597,29 @@ function all_infected(type)
 	savefig(pl_final, plotsdir("paper", "$(type)_all_infected.png"))
 	nothing
 end
+
+run_all("final_UK")
+overall_summary(["final_UK"], "binn_summ")
+
+# Have only run biased models (not unbiased)
+# mean([unbiased_summ[!, "avg_"*l] for l in loss_labels])./mean([binn_summ[!, "avg_"*l] for l in loss_labels])
+
+
+
+# Generates side-by-side ensemble time series and transmissibility responses for all regions, comparing biased to unbiased
+# for region in all_regions
+# ONLY RUN FOR THE UK
+region = "UK"
+	pred_bias, beta_bias = EnsembleSummary("final_$region", titles=["(a)" "(b)" "(c)" "(a)"])
+	pred_unbias, beta_unbias = EnsembleSummary("baseline_$region", titles=["(d)" "(e)" "(f)" "(b)"])
+	pl = plot(pred_bias, pred_unbias, layout = (1, 2), size=(1000,800))
+	savefig(pl, plotsdir("paper", "appendix", "ensemble_comp_$region.png"))
+
+	pl = plot(beta_bias, beta_unbias, layout = (1, 2), size=(800,500))
+	savefig(pl, plotsdir("paper", "appendix", "beta_comp_$region.png"))
+# end
+
+
+
+#overall_summary(["baseline_UK"], "unbiased_summ")
+#overall_summary(["final_UK"], "binn_summ")
